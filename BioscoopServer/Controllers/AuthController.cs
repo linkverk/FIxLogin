@@ -13,11 +13,13 @@ namespace Controllers
     {
         private readonly DBUserService _DBUserService;
         private readonly CinemaContext _context;
+        private readonly DBJwtService _DBJwtService;
 
-        public AuthController(DBUserService DBUserService, CinemaContext context)
+        public AuthController(DBUserService DBUserService, CinemaContext context, DBJwtService DBJwtService)
         {
             _DBUserService = DBUserService;
             _context = context;
+            _DBJwtService = DBJwtService;
         }
 
         [HttpPost("register")]
@@ -60,12 +62,16 @@ namespace Controllers
                 Console.WriteLine($"✅ User registered: {user.Email} (ID: {user.Id})");
                 Console.WriteLine($"🔒 Password hashed and salted");
 
+                // Generate JWT token
+                var token = _DBJwtService.GenerateToken(user.Id.ToString(), user.Email);
+
                 var responseDto = new AuthResponseDTO
                 {
                     Id = user.Id.ToString(),
                     Email = user.Email,
                     FirstName = user.FirstName,
                     LastName = user.LastName,
+                    Token = token,
                     Message = "Registration successful"
                 };
 
@@ -116,12 +122,16 @@ namespace Controllers
 
             Console.WriteLine($"✅ User logged in: {user.Email} (ID: {user.Id})");
 
+            // Generate JWT token
+            var token = _DBJwtService.GenerateToken(user.Id.ToString(), user.Email);
+
             var responseDto = new AuthResponseDTO
             {
                 Id = user.Id.ToString(),
                 Email = user.Email,
                 FirstName = user.FirstName,
                 LastName = user.LastName,
+                Token = token,
                 Message = "Login successful"
             };
 

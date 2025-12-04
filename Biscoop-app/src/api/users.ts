@@ -1,4 +1,4 @@
-// User API Service - Updated to match backend endpoints
+// User API Service - Updated with JWT token handling
 const API_BASE_URL = 'http://localhost:5275/api/Users';
 const AUTH_BASE_URL = 'http://localhost:5275/api/auth';
 
@@ -20,6 +20,15 @@ export interface UserProfile {
 export interface LoginCredentials {
   email: string;
   password: string;
+}
+
+export interface AuthResponse {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  token?: string;
+  message: string;
 }
 
 export interface UserBooking {
@@ -62,10 +71,39 @@ export interface FilmHistory {
   description: string;
 }
 
+// Token management
+export function getAuthToken(): string | null {
+  return localStorage.getItem('authToken');
+}
+
+export function saveAuthToken(token: string): void {
+  localStorage.setItem('authToken', token);
+}
+
+export function clearAuthToken(): void {
+  localStorage.removeItem('authToken');
+}
+
+// Create headers with JWT token if available
+function getAuthHeaders(): HeadersInit {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+  
+  const token = getAuthToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return headers;
+}
+
 // GET user profile by ID
 export async function getUserProfile(userId: string): Promise<UserProfile> {
   try {
-    const response = await fetch(`${API_BASE_URL}/${userId}`);
+    const response = await fetch(`${API_BASE_URL}/${userId}`, {
+      headers: getAuthHeaders()
+    });
     if (!response.ok) {
       throw new Error(`Failed to fetch user: ${response.status}`);
     }
@@ -81,9 +119,7 @@ export async function updateUserProfile(userId: string, userData: UserDTO): Prom
   try {
     const response = await fetch(`${API_BASE_URL}/${userId}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify(userData),
     });
     if (!response.ok) {
@@ -101,9 +137,7 @@ export async function deleteUserAccount(userId: string): Promise<void> {
   try {
     const response = await fetch(`${API_BASE_URL}/${userId}`, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
     });
     if (!response.ok) {
       throw new Error(`Failed to delete user: ${response.status}`);
@@ -117,7 +151,9 @@ export async function deleteUserAccount(userId: string): Promise<void> {
 // GET user film history
 export async function getUserHistory(userId: string): Promise<FilmHistory[]> {
   try {
-    const response = await fetch(`${API_BASE_URL}/${userId}/history`);
+    const response = await fetch(`${API_BASE_URL}/${userId}/history`, {
+      headers: getAuthHeaders()
+    });
     if (!response.ok) {
       throw new Error(`Failed to fetch history: ${response.status}`);
     }
@@ -133,9 +169,7 @@ export async function addToUserHistory(userId: string, filmId: string): Promise<
   try {
     const response = await fetch(`${API_BASE_URL}/${userId}/history`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ filmId }),
     });
     if (!response.ok) {
@@ -150,7 +184,9 @@ export async function addToUserHistory(userId: string, filmId: string): Promise<
 // GET user bookings
 export async function getUserBookings(userId: string): Promise<UserBooking[]> {
   try {
-    const response = await fetch(`${API_BASE_URL}/${userId}/bookings`);
+    const response = await fetch(`${API_BASE_URL}/${userId}/bookings`, {
+      headers: getAuthHeaders()
+    });
     if (!response.ok) {
       throw new Error(`Failed to fetch bookings: ${response.status}`);
     }
@@ -174,16 +210,17 @@ export function saveCurrentUserId(userId: string): void {
 // Helper to clear user ID from localStorage
 export function clearCurrentUserId(): void {
   localStorage.removeItem('userId');
+  clearAuthToken();
 }
 
-// Auth endpoints using the auth controller
+// Auth endpoints using the auth controller with JWT
 export async function registerUser(userData: {
   email: string;
   password: string;
   firstName?: string;
   lastName?: string;
-}): Promise<UserProfile> {
-  const response = await fetch(`${AUTH_BASE_URL}/users`, {
+}): Promise<AuthResponse> {
+  const response = await fetch(`${AUTH_BASE_URL}/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(userData),
@@ -193,11 +230,20 @@ export async function registerUser(userData: {
     const error = await response.json();
     throw new Error(error.message || 'Registration failed');
   }
-  return response.json();
+  
+  const data: AuthResponse = await response.json();
+  
+  // Save token if provided
+  if (data.token) {
+    saveAuthToken(data.token);
+    console.log('🔐 JWT token saved');
+  }
+  
+  return data;
 }
 
-export async function loginUserAuth(credentials: LoginCredentials): Promise<UserProfile> {
-  const response = await fetch(`${AUTH_BASE_URL}/sessions`, {
+export async function loginUserAuth(credentials: LoginCredentials): Promise<AuthResponse> {
+  const response = await fetch(`${AUTH_BASE_URL}/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(credentials),
@@ -207,22 +253,37 @@ export async function loginUserAuth(credentials: LoginCredentials): Promise<User
     const error = await response.json();
     throw new Error(error.message || 'Login failed');
   }
-  return response.json();
+  
+  const data: AuthResponse = await response.json();
+  
+  // Save token if provided
+  if (data.token) {
+    saveAuthToken(data.token);
+    console.log('🔐 JWT token saved');
+  }
+  
+  return data;
 }
 
 export async function logoutUser(userId?: string): Promise<void> {
-  await fetch(`${AUTH_BASE_URL}/sessions`, {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
+  await fetch(`${AUTH_BASE_URL}/logout`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
     body: JSON.stringify({ userId }),
   });
+  
+  // Clear token on logout
+  clearAuthToken();
+  console.log('🔓 JWT token cleared');
 }
 
 // Legacy function - kept for backward compatibility
 export async function createOrGetUser(userData: UserDTO): Promise<UserProfile> {
   try {
     // First, try to find user by email
-    const response = await fetch(`${API_BASE_URL}?email=${encodeURIComponent(userData.email)}`);
+    const response = await fetch(`${API_BASE_URL}?email=${encodeURIComponent(userData.email)}`, {
+      headers: getAuthHeaders()
+    });
     
     if (response.ok) {
       const user = await response.json();
@@ -234,9 +295,7 @@ export async function createOrGetUser(userData: UserDTO): Promise<UserProfile> {
     console.log('Creating new user in database...');
     const createResponse = await fetch(`${API_BASE_URL}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify(userData),
     });
     

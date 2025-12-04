@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { saveCurrentUserId, loginUserAuth } from '../../api/users';
+import { saveCurrentUserId, loginUserAuth, saveAuthToken } from '../../api/users';
 import './auth.css';
 
 export interface LoginProps {
@@ -35,6 +35,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       
       // Save user data
       saveCurrentUserId(data.id);
+      
+      // Save JWT token
+      if (data.token) {
+        saveAuthToken(data.token);
+        console.log('🔐 JWT token received and saved');
+      }
       
       const fullName = `${data.firstName || ''} ${data.lastName || ''}`.trim() || 'User';
       localStorage.setItem('username', fullName);

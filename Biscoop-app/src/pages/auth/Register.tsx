@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { registerUser } from '../../api/users';
+import { registerUser, saveAuthToken } from '../../api/users';
 import './auth.css';
 
 const Register: React.FC = () => {
@@ -45,6 +45,11 @@ const Register: React.FC = () => {
       });
 
       console.log('✅ User registered successfully:', data);
+
+      // JWT token is already saved in registerUser function
+      if (data.token) {
+        console.log('🔐 JWT token received and saved during registration');
+      }
 
       // Save user data for login
       const fullName = `${firstName} ${lastName}`;
