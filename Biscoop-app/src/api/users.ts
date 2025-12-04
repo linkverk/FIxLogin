@@ -1,4 +1,4 @@
-// User API Service - Updated with JWT token handling
+// User API Service - Updated with JWT token handling and REST API structure
 const API_BASE_URL = 'http://localhost:5275/api/Users';
 const AUTH_BASE_URL = 'http://localhost:5275/api/auth';
 
@@ -213,14 +213,16 @@ export function clearCurrentUserId(): void {
   clearAuthToken();
 }
 
-// Auth endpoints using the auth controller with JWT
+// ===== REST API AUTH ENDPOINTS =====
+
+// POST /api/auth/users - Register new user
 export async function registerUser(userData: {
   email: string;
   password: string;
   firstName?: string;
   lastName?: string;
 }): Promise<AuthResponse> {
-  const response = await fetch(`${AUTH_BASE_URL}/register`, {
+  const response = await fetch(`${AUTH_BASE_URL}/users`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(userData),
@@ -242,8 +244,9 @@ export async function registerUser(userData: {
   return data;
 }
 
+// POST /api/auth/sessions - Login user and create session
 export async function loginUserAuth(credentials: LoginCredentials): Promise<AuthResponse> {
-  const response = await fetch(`${AUTH_BASE_URL}/login`, {
+  const response = await fetch(`${AUTH_BASE_URL}/sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(credentials),
@@ -265,12 +268,29 @@ export async function loginUserAuth(credentials: LoginCredentials): Promise<Auth
   return data;
 }
 
+// DELETE /api/auth/sessions - Logout user and destroy session
 export async function logoutUser(userId?: string): Promise<void> {
-  await fetch(`${AUTH_BASE_URL}/logout`, {
-    method: 'POST',
+  const response = await fetch(`${AUTH_BASE_URL}/sessions`, {
+    method: 'DELETE',
     headers: getAuthHeaders(),
     body: JSON.stringify({ userId }),
   });
+  
+  // 204 No Content = success, no need to parse JSON
+  if (response.status === 204) {
+    clearAuthToken();
+    console.log('🔓 JWT token cleared');
+    return;
+  }
+
+  if (!response.ok) {
+    try {
+      const error = await response.json();
+      throw new Error(error.message || 'Logout failed');
+    } catch {
+      throw new Error('Logout failed');
+    }
+  }
   
   // Clear token on logout
   clearAuthToken();

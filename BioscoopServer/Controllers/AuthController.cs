@@ -23,9 +23,12 @@ namespace Controllers
             _DBJwtService = DBJwtService;
         }
 
-        [HttpPost("register")]
+        /// <summary>
+        /// POST /api/auth/users - Register a new user
+        /// </summary>
+        [HttpPost("users")]
         [AllowAnonymous]
-        public async Task<IActionResult> Register([FromBody] RegisterDTO registerModel)
+        public async Task<IActionResult> CreateUser([FromBody] RegisterDTO registerModel)
         {
             if (registerModel == null)
                 return BadRequest(new { message = "Registration data is required" });
@@ -77,7 +80,7 @@ namespace Controllers
                     Message = "Registration successful"
                 };
 
-                return Ok(responseDto);
+                return CreatedAtAction(nameof(GetUser), new { id = user.Id }, responseDto);
             }
             catch (Exception ex)
             {
@@ -86,9 +89,12 @@ namespace Controllers
             }
         }
 
-        [HttpPost("login")]
+        /// <summary>
+        /// POST /api/auth/sessions - Login user and create session
+        /// </summary>
+        [HttpPost("sessions")]
         [AllowAnonymous]
-        public async Task<IActionResult> Login([FromBody] LoginDTO loginModel)
+        public async Task<IActionResult> CreateSession([FromBody] LoginDTO loginModel)
         {
             if (loginModel == null)
                 return BadRequest(new { message = "Login data is required" });
@@ -141,35 +147,21 @@ namespace Controllers
             return Ok(responseDto);
         }
 
-        [HttpPost("logout")]
-        public IActionResult Logout([FromBody] LogoutDTO? logoutModel)
+        /// <summary>
+        /// DELETE /api/auth/sessions - Logout user and destroy session
+        /// </summary>
+        [HttpDelete("sessions")]
+        [Authorize]
+        public IActionResult DeleteSession([FromBody] LogoutDTO? logoutModel)
         {
             var userId = logoutModel?.UserId ?? "unknown";
             Console.WriteLine($"✅ User logged out: {userId}");
             return NoContent();
         }
 
-        // Keep legacy endpoints for backward compatibility
-        [HttpPost("users")]
-        [AllowAnonymous]
-        public async Task<IActionResult> CreateUser([FromBody] RegisterDTO registerModel)
-        {
-            return await Register(registerModel);
-        }
-
-        [HttpPost("sessions")]
-        [AllowAnonymous]
-        public async Task<IActionResult> CreateSession([FromBody] LoginDTO loginModel)
-        {
-            return await Login(loginModel);
-        }
-
-        [HttpDelete("sessions")]
-        public IActionResult DeleteSession([FromBody] LogoutDTO? logoutModel)
-        {
-            return Logout(logoutModel);
-        }
-
+        /// <summary>
+        /// GET /api/auth/users/{id} - Get user info by ID
+        /// </summary>
         [HttpGet("users/{id}")]
         [Authorize]
         public async Task<IActionResult> GetUser(string id)
