@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { saveCurrentUserId } from '../../api/users';
+import { registerUser } from '../../api/users';
 import './auth.css';
-
-const API_BASE_URL = 'http://localhost:5275/api/auth';
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
@@ -39,24 +37,12 @@ const Register: React.FC = () => {
 
     try {
       // Call backend API to register user with hashed password
-      const response = await fetch(`${API_BASE_URL}/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          password,
-          firstName,
-          lastName,
-        }),
+      const data = await registerUser({
+        email,
+        password,
+        firstName,
+        lastName,
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Registration failed');
-      }
 
       console.log('✅ User registered successfully:', data);
 

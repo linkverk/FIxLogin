@@ -20,8 +20,8 @@ namespace Controllers
             _context = context;
         }
 
-        [HttpPost("users")]
-        public async Task<IActionResult> CreateUser([FromBody] RegisterDTO registerModel)
+        [HttpPost("register")]
+        public async Task<IActionResult> Register([FromBody] RegisterDTO registerModel)
         {
             if (registerModel == null)
                 return BadRequest(new { message = "Registration data is required" });
@@ -69,7 +69,7 @@ namespace Controllers
                     Message = "Registration successful"
                 };
 
-                return CreatedAtAction(nameof(GetUser), new { id = user.Id }, responseDto);
+                return Ok(responseDto);
             }
             catch (Exception ex)
             {
@@ -78,8 +78,8 @@ namespace Controllers
             }
         }
 
-        [HttpPost("sessions")]
-        public async Task<IActionResult> CreateSession([FromBody] LoginDTO loginModel)
+        [HttpPost("login")]
+        public async Task<IActionResult> Login([FromBody] LoginDTO loginModel)
         {
             if (loginModel == null)
                 return BadRequest(new { message = "Login data is required" });
@@ -97,14 +97,24 @@ namespace Controllers
                 return Unauthorized(new { message = "Invalid email or password" });
             }
 
-            bool isValidPassword = BCrypt.Net.BCrypt.Verify(loginModel.Password, user.Password);
+            bool isValidPassword;
+            try
+            {
+                isValidPassword = BCrypt.Net.BCrypt.Verify(loginModel.Password, user.Password);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ BCrypt verification error: {ex.Message}");
+                Console.WriteLine($"   Password hash: {user.Password}");
+                return StatusCode(500, new { message = "Authentication error. Please contact support." });
+            }
             
             if (!isValidPassword)
             {
                 return Unauthorized(new { message = "Invalid email or password" });
             }
 
-            Console.WriteLine($"✅ Session created for user: {user.Email} (ID: {user.Id})");
+            Console.WriteLine($"✅ User logged in: {user.Email} (ID: {user.Id})");
 
             var responseDto = new AuthResponseDTO
             {
@@ -118,14 +128,31 @@ namespace Controllers
             return Ok(responseDto);
         }
 
+        [HttpPost("logout")]
+        public IActionResult Logout([FromBody] LogoutDTO? logoutModel)
+        {
+            var userId = logoutModel?.UserId ?? "unknown";
+            Console.WriteLine($"✅ User logged out: {userId}");
+            return NoContent();
+        }
+
+        // Keep legacy endpoints for backward compatibility
+        [HttpPost("users")]
+        public async Task<IActionResult> CreateUser([FromBody] RegisterDTO registerModel)
+        {
+            return await Register(registerModel);
+        }
+
+        [HttpPost("sessions")]
+        public async Task<IActionResult> CreateSession([FromBody] LoginDTO loginModel)
+        {
+            return await Login(loginModel);
+        }
+
         [HttpDelete("sessions")]
         public IActionResult DeleteSession([FromBody] LogoutDTO? logoutModel)
         {
-
-            var userId = logoutModel?.UserId ?? "unknown";
-            Console.WriteLine($"✅ Session deleted for user: {userId}");
-
-            return NoContent();
+            return Logout(logoutModel);
         }
 
         [HttpGet("users/{id}")]
