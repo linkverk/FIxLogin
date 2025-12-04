@@ -4,6 +4,7 @@ using BioscoopServer.DBServices;
 using BioscoopServer.Models.ModelsDTOs;
 using Microsoft.EntityFrameworkCore;
 using BCrypt.Net;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Controllers
 {
@@ -23,6 +24,7 @@ namespace Controllers
         }
 
         [HttpPost("register")]
+        [AllowAnonymous]
         public async Task<IActionResult> Register([FromBody] RegisterDTO registerModel)
         {
             if (registerModel == null)
@@ -85,6 +87,7 @@ namespace Controllers
         }
 
         [HttpPost("login")]
+        [AllowAnonymous]
         public async Task<IActionResult> Login([FromBody] LoginDTO loginModel)
         {
             if (loginModel == null)
@@ -148,12 +151,14 @@ namespace Controllers
 
         // Keep legacy endpoints for backward compatibility
         [HttpPost("users")]
+        [AllowAnonymous]
         public async Task<IActionResult> CreateUser([FromBody] RegisterDTO registerModel)
         {
             return await Register(registerModel);
         }
 
         [HttpPost("sessions")]
+        [AllowAnonymous]
         public async Task<IActionResult> CreateSession([FromBody] LoginDTO loginModel)
         {
             return await Login(loginModel);
@@ -166,6 +171,7 @@ namespace Controllers
         }
 
         [HttpGet("users/{id}")]
+        [Authorize]
         public async Task<IActionResult> GetUser(string id)
         {
             if (!Guid.TryParse(id, out var userId))
